@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: AWS-SAM-APIGW-Lambda-DDB
+
+Globals:
+  Function:
+    Runtime: java11
+    MemorySize: 3007
+    Timeout: 25
+
+Resources:
+rankedAPIGateway:
+  Type: AWS::Serverless::Api
+  Properties:
+    StageName: dev
+    Name: ranked-api-gateway
+
+rankedUpdateLambda:
+  Type: AWS::Serverless::Function
+  Properties:
+    FunctionName: rankedUpdate
+    Handler: com.example.RankedUpdateFunction::handleRequest
+    CodeUri: target/rankPublisher.zip
+    Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref rankedDDBTable
+    Environment:
+      Variables:
+        TABLE: !Ref rankedDDBTable
+    Events:
+      ApiEvents:
+        Type: Api
+        Properties:
+          Path: /gameResult
+          Method: POST
+          RestApiId: !ref ranledAPIGateway
+
+rankedGetLambda:
+  Type: AWS::Serverless::Function
+  Properties:
+    FunctionName: rankedGet
+    Handler: com.example.RankedGetFunction::handleRequest
+    CodeUri: target/rankPublisher.zip
+    Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref rankedDDBTable
+    Environment:
+      Variables:
+        TABLE: !Ref rankedDDBTable
+    Events:
+      ApiEvents:
+        Type: Api
+        Properties:
+          Path: /gameResult/{id}
+          Method: GET
+          RestApiId: !Ref rankedAPIGateway
+
+Outputs:
+  RankedGetEndpoint:
+    Value:
+      Fn::Sub: https://${rankedAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/dev/gameResult/{id}
+  RankedUpdateEndpoint:
+    Value:
+      Fn::Sub: https://${rankedAPIGateway}.execute-api.${AWS::Region}.amazonaws.com/dev/gameResult
